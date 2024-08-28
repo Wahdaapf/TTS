@@ -1,32 +1,47 @@
 import React, { useState, useEffect } from 'react';
 
 function App() {
-  const [language, setLanguage] = useState("nl-NL"); // Bahasa yang digunakan untuk TTS
-  const [text, setText] = useState("Welkom bij onze interactieve game over nieuwe beleid en strategieën."); // Teks asli
-  const [rate, setRate] = useState(0.8); // Kecepatan pembacaan, default 0.8
+  const [language, setLanguage] = useState("nl-NL");
+  const [text, setText] = useState("Welkom bij onze interactieve game over nieuwe beleid en strategieën.");
+  const [rate, setRate] = useState(0.8);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
 
-  // Terjemahan manual
   const manualTranslations: { [key: string]: string } = {
     "nl-NL": "Welkom bij onze interactieve game over nieuwe beleid en strategieën.",
     "en-US": "Welcome to our interactive game about new policies and strategies.",
     "fr-FR": "Bienvenue dans notre jeu interactif sur les nouvelles politiques et stratégies.",
     "de-DE": "Willkommen zu unserem interaktiven Spiel über neue Richtlinien und Strategien."
-    // Tambahkan terjemahan manual lainnya di sini
   };
 
+  useEffect(() => {
+    const updateVoices = () => {
+      const availableVoices = window.speechSynthesis.getVoices();
+      setVoices(availableVoices);
+      setSelectedVoice(availableVoices.find(voice => voice.lang === language) || null);
+    };
+
+    updateVoices();
+    window.speechSynthesis.onvoiceschanged = updateVoices;
+  }, []);
+
   const speakText = (text: string) => {
+    if (!selectedVoice) {
+      console.error("No voice selected");
+      return;
+    }
+
     const speech = new SpeechSynthesisUtterance(text);
-    speech.lang = language;
-    speech.rate = rate; // Mengatur kecepatan
+    speech.voice = selectedVoice;
+    speech.rate = rate;
     window.speechSynthesis.speak(speech);
     console.log("Speaking:", text, "in", language, "with rate:", rate);
   };
 
   useEffect(() => {
-    // Mengambil terjemahan manual berdasarkan bahasa yang dipilih
     const translatedText = manualTranslations[language] || text;
     speakText(translatedText);
-  }, [language, rate]);
+  }, [language, rate, selectedVoice]);
 
   return (
     <div className="App">
@@ -36,7 +51,14 @@ function App() {
           <option value="en-US">English (United States)</option>
           <option value="fr-FR">French (France)</option>
           <option value="de-DE">German (Germany)</option>
-          {/* Tambahkan opsi bahasa lain di sini */}
+        </select>
+
+        <select onChange={(e) => setSelectedVoice(voices.find(voice => voice.name === e.target.value) || null)} value={selectedVoice?.name || ''}>
+          {voices.filter(voice => voice.lang === language).map(voice => (
+            <option key={voice.name} value={voice.name}>
+              {voice.name}
+            </option>
+          ))}
         </select>
 
         <button onClick={() => speakText(manualTranslations[language])}>
